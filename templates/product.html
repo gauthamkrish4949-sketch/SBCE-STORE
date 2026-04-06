@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Uni Store SBCE | {{ product.name }}</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .card { max-width: 850px; background: white; display: flex; border-radius: 20px; overflow: hidden; box-shadow: 0 15px 35px rgba(0,0,0,0.1); flex-wrap: wrap; }
+        .left { flex: 1; min-width: 300px; }
+        .left img { width: 100%; height: 100%; object-fit: cover; }
+        .right { flex: 1.2; padding: 40px; min-width: 300px; }
+        .store-brand { color: #3498db; font-weight: bold; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; }
+        .price { font-size: 2.2rem; color: #27ae60; font-weight: bold; margin: 20px 0; }
+        .desc { color: #555; line-height: 1.7; font-size: 1.1rem; margin-bottom: 30px; }
+        .btn { display: inline-block; padding: 15px 35px; background: #2c3e50; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; transition: 0.3s; }
+        .btn:hover { background: #34495e; }
+        @media (max-width: 600px) { .card { flex-direction: column; } }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="left"><img src="{{ product.image }}"></div>
+        <div class="right">
+            <p class="store-brand">Uni Store SBCE | {{ product.category }}</p>
+            <h1>{{ product.name }}</h1>
+            <p class="desc">{{ product.desc }}</p>
+            <p class="price">₹{{ product.price }}</p>
+            <form action="/add_to_cart/{{ product.id }}" method="post">
+                <button type="submit" class="btn">Add to Cart 🛒</button>
+            </form>
+            <br><br>
+            <a href="/" style="color: #95a5a6; text-decoration: none; font-size: 0.9rem;">← Back to Uni Store</a>
+        </div>
+    </div>
+</body>
+</html>

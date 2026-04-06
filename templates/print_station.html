@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Print Station | Uni Store SBCE</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .nav { width: 100%; background: #2c3e50; padding: 15px; text-align: center; }
+        .nav a { color: white; text-decoration: none; font-weight: bold; margin: 0 20px; }
+        .print-card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 500px; margin-top: 50px; }
+        .icon-header { font-size: 50px; text-align: center; margin-bottom: 10px; }
+        h2 { text-align: center; color: #2c3e50; margin-bottom: 30px; }
+        label { display: block; margin-top: 15px; font-weight: bold; color: #555; }
+        input, select { width: 100%; padding: 12px; margin-top: 8px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .upload-box { background: #f8fbff; border: 2px dashed #3498db; padding: 20px; border-radius: 10px; text-align: center; margin-top: 20px; }
+        .btn-print { width: 100%; padding: 15px; background: #3498db; color: white; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 25px; }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <a href="/">🏠 Back to Store</a>
+        <a href="/cart">🛒 View Cart</a>
+    </div>
+
+    <div class="print-card">
+        <div class="icon-header">🖨️</div>
+        <h2>Quick Print Service</h2>
+        <p style="text-align: center; color: #666;">Avoid the queue. Upload your lab records or assignments here.</p>
+        
+        <form method="POST" enctype="multipart/form-data">
+            <label>Student Name</label>
+            <input type="text" name="student_name" placeholder="Full Name" required>
+
+            <label>Department</label>
+            <select name="department">
+                <option value="CSE">CSE</option><option value="ECE">ECE</option>
+                <option value="ME">ME</option><option value="CE">CE</option><option value="EEE">EEE</option>
+            </select>
+
+            <div style="display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                    <label>Semester</label>
+                    <select name="semester">
+                        {% for n in range(1, 9) %}<option value="{{n}}">S{{n}}</option>{% endfor %}
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label>Class</label>
+                    <input type="text" name="class_section" placeholder="A/B" required>
+                </div>
+            </div>
+
+            <div class="upload-box">
+                <label style="color: #3498db;">Select Document (PDF/Image)</label>
+                <input type="file" name="print_file" required style="border: none;">
+            </div>
+
+            <button type="submit" class="btn-print">Upload for Printing</button>
+        </form>
+    </div>
+</body>
+</html>
