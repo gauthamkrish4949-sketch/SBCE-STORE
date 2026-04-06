@@ -1,22 +1,18 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory
+from flask import Flask, render_template, request, session, redirect, url_for
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = "sbce_secret_key_2024"
+# Replace with a random string for security
+app.secret_key = os.environ.get("SECRET_KEY", "sbce_secret_key_2024")
 
-# --- Configuration ---
-UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
+# Configuration for file uploads
+UPLOAD_FOLDER = 'static/uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# Ensure the upload directory exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-
-# --- Data Stores ---
-# Authorized Student IDs for restricted login
-AUTHORIZED_STUDENTS = ['SBCE2401', 'SBCE2402', 'GAUTHAM_K', 'STUDENT_TEST']
-
+# Mock Data (Replace with your actual inventory list)
 inventory = [
     # Writing & Basic Stationery
     {"id": 1, "name": "Blue Ballpoint Pen", "price": 5, "stock": 100, "category": "Writing", "image": "https://images.unsplash.com/photo-1585336261022-680e295ce3fe?w=400", "desc": "Smooth-flow blue ink."},
@@ -36,115 +32,17 @@ inventory = [
     # Lab Essentials
     {"id": 4, "name": "Lab Coat (Unisex)", "price": 499, "stock": 25, "category": "Lab", "image": "https://images-cdn.ubuy.co.in/65ff5ce02d260166822ccaa9-medgear-women-s-33-lab-coat-long.jpg", "desc": "White protective cotton lab coat."},
 ]
-
 orders_received = []
+AUTHORIZED_STUDENTS = ["SBCE2401", "SBCE2402"] # Example IDs
 
-# --- Helper Functions ---
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-@app.context_processor
-def inject_cart_count():
-    cart = session.get('cart', {})
-    return {'total_items': sum(cart.values())}
-
-# --- Routes: Storefront ---
 @app.route('/')
 def home():
-    if 'user' not in session:
+    if 'user' not in session and 'is_admin' not in session:
         return redirect(url_for('login'))
-    # You MUST pass orders=orders_received here
-    return render_template('index.html', products=inventory, orders=orders_received)
+    return render_template('index.html', inventory=inventory)
 
+# --- Authentication Routes ---
 
-@app.route('/add_to_cart/<int:product_id>', methods=['POST'])
-def add_to_cart(product_id):
-    cart = session.get('cart', {})
-    str_id = str(product_id)
-    cart[str_id] = cart.get(str_id, 0) + 1
-    session['cart'] = cart
-    return redirect(url_for('home'))
-
-@app.route('/cart')
-def view_cart():
-    cart = session.get('cart', {})
-    cart_items = []
-    grand_total = 0
-    for pid, qty in cart.items():
-        product = next((item for item in inventory if item['id'] == int(pid)), None)
-        if product:
-            total = product['price'] * qty
-            grand_total += total
-            cart_items.append({'id': pid, 'name': product['name'], 'price': product['price'], 'qty': qty, 'total': total})
-    return render_template('cart.html', items=cart_items, grand_total=grand_total)
-
-
-@app.route('/checkout', methods=['GET', 'POST'])
-def checkout():
-    if request.method == 'POST':
-        # 1. Get the Login ID from the current session
-        logged_in_user = session.get('user')
-        
-        s_name = request.form.get('student_name')
-        s_dept = f"{request.form.get('department')} | {request.form.get('semester')} ({request.form.get('class_section')})"
-        pay_method = request.form.get('payment_method')
-        
-        cart = session.get('cart', {})
-        items_summary = []
-        order_total = 0 
-
-        for pid, qty in cart.items():
-            product = next((item for item in inventory if item['id'] == int(pid)), None)
-            if product:
-                order_total += (product['price'] * qty)
-                product['stock'] -= qty
-                items_summary.append(f"{product['name']} (x{qty})")
-
-        # 2. Add 'username' to the dictionary so the Status page can find it
-        new_order = {
-            'id': len(orders_received) + 1,
-            'username': logged_in_user,  # <--- CRITICAL: Links the order to the account
-            'name': s_name,
-            'dept_info': s_dept,
-            'purchased_items': ", ".join(items_summary),
-            'total': order_total,
-            'method': pay_method,
-            'status': '⏳ Pending Verification' if pay_method == 'UPI' else '💵 Cash on Counter',
-            'payment_proof': None
-        }
-        
-        orders_received.append(new_order)
-        session.pop('cart', None)
-        
-        if pay_method == 'UPI':
-            return redirect(url_for('payment', order_id=new_order['id']))
-        return render_template('order_confirmed.html', name=s_name, method="COD")
-
-    return render_template('checkout_form.html')
-
-@app.route('/payment/<int:order_id>', methods=['GET', 'POST'])
-def payment(order_id):
-    order = next((o for o in orders_received if o['id'] == order_id), None)
-    if not order: return redirect(url_for('home'))
-
-    if request.method == 'POST':
-        file = request.files.get('payment_screenshot')
-        if file and allowed_file(file.filename):
-            filename = secure_filename(f"ORDER_{order_id}_{file.filename}")
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            order['payment_proof'] = filename
-            return render_template('order_confirmed.html', name=order['name'], method="UPI")
-            
-    return render_template('payment_page.html', order=order)
-
-@app.route('/deliver_order/<int:order_id>', methods=['POST'])
-def deliver_order(order_id):
-    order = next((o for o in orders_received if o['id'] == order_id), None)
-    if order:
-        order['status'] = '🏁 Delivered'
-    return redirect(url_for('admin_panel'))
-
-# --- Routes: Authentication ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -159,7 +57,8 @@ def login():
 @app.route('/admin-login', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
-        u, p = request.form.get('username'), request.form.get('password')
+        u = request.form.get('username')
+        p = request.form.get('password')
         if u == "admin" and p == "sbce123":
             session['is_admin'] = True
             return redirect(url_for('admin_panel'))
@@ -168,39 +67,79 @@ def admin_login():
 
 @app.route('/logout')
 def logout():
-    session.clear()
+    session.clear() # Removes all user and admin data from the session
     return redirect(url_for('login'))
 
-@app.route('/dispatch_order/<int:order_id>', methods=['POST'])
-def dispatch_order(order_id):
-    order = next((o for o in orders_received if o['id'] == order_id), None)
-    if order:
-        order['status'] = '🚚 Dispatched & Out for Delivery'
-    return redirect(url_for('admin_panel'))
+# --- Store & Admin Logic ---
 
-# --- Routes: Admin Panel ---
+@app.route('/checkout', methods=['POST'])
+def checkout():
+    logged_in_user = session.get('user')
+    s_name = request.form.get('student_name')
+    s_dept = f"{request.form.get('department')} | {request.form.get('semester')}"
+    pay_method = request.form.get('payment_method')
+    
+    cart = session.get('cart', {})
+    items_summary = []
+    order_total = 0 
+
+    for pid, qty in cart.items():
+        product = next((item for item in inventory if item['id'] == int(pid)), None)
+        if product:
+            order_total += (product['price'] * qty)
+            product['stock'] -= qty
+            items_summary.append(f"{product['name']} (x{qty})")
+
+    new_order = {
+        'id': len(orders_received) + 1,
+        'username': logged_in_user,
+        'name': s_name,
+        'dept_info': s_dept,
+        'purchased_items': ", ".join(items_summary),
+        'total': order_total,
+        'method': pay_method,
+        'status': '⏳ Pending Payment' if pay_method == 'UPI' else '💵 Cash on Counter',
+        'screenshot': None 
+    }
+    
+    orders_received.append(new_order)
+    session.pop('cart', None)
+    
+    if pay_method == 'UPI':
+        return redirect(url_for('payment', order_id=new_order['id']))
+    return render_template('order_confirmed.html', name=s_name)
+
+@app.route('/payment/<int:order_id>', methods=['GET', 'POST'])
+def payment(order_id):
+    if request.method == 'POST':
+        file = request.files.get('screenshot')
+        if file:
+            filename = secure_filename(f"order_{order_id}_{file.filename}")
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            
+            for order in orders_received:
+                if order['id'] == order_id:
+                    order['screenshot'] = filename
+                    order['status'] = '✅ Payment Uploaded'
+            return render_template('order_confirmed.html')
+            
+    return render_template('payment_page.html', order_id=order_id)
+
 @app.route('/admin')
 def admin_panel():
     if not session.get('is_admin'):
         return redirect(url_for('admin_login'))
     return render_template('admin.html', orders=orders_received)
 
-@app.route('/verify_order/<int:order_id>', methods=['POST'])
-def verify_order(order_id):
+@app.route('/deliver_order/<int:order_id>', methods=['POST'])
+def deliver_order(order_id):
     order = next((o for o in orders_received if o['id'] == order_id), None)
-    if order: order['status'] = '✅ Verified'
+    if order:
+        order['status'] = '🏁 Delivered'
     return redirect(url_for('admin_panel'))
 
-@app.route('/revert_order/<int:order_id>', methods=['POST'])
-def revert_order(order_id):
-    order = next((o for o in orders_received if o['id'] == order_id), None)
-    if order: order['status'] = 'Pending Verification'
-    return redirect(url_for('admin_panel'))
-
-@app.route('/uploads/<filename>')
-def download_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
+# --- Render Port Binding ---
 if __name__ == '__main__':
+    # Use the port assigned by Render, or default to 5000 for local testing
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
